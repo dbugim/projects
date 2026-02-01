@@ -1,13 +1,7 @@
-from PyQt5.QtWidgets import (
-    QMainWindow, QVBoxLayout, QLabel, QCalendarWidget, QDialog,
-    QDialogButtonBox, QPushButton, QWidget, QApplication, QDesktopWidget, QMainWindow
-)
-from PyQt5.QtCore import QDate, QEventLoop, Qt, QEvent
 from datetime import date, timedelta, datetime
 import sys
 import os
 import random
-import openpyxl
 import pyperclip
 import pyautogui
 import time
@@ -16,219 +10,23 @@ import pandas as pd
 import atexit
 from playwright.sync_api import sync_playwright
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # Adjust path to include the parent directory
 
 # Script to help build the executable with PyInstaller
 try:
-    # Para o executável PyInstaller
+    # For PyInstaller executable
     sys.path.append(os.path.join(sys._MEIPASS, "repository"))
 except Exception:
-    # Para desenvolvimento
+    # For development
     sys.path.append(str(Path(__file__).resolve().parent.parent / "repository"))
 
-class MyCalendar(QWidget):  # Changed to inherit from QWidget
-    def __init__(self):
-        super().__init__()  # Initialize the QWidget parent class
-        # Create the initial dialog
-        self.initial_dialog = self.InitialDialog(self)
-        self.calendar_window = None
-        self.date_list = []  # Store selected dates
-        self.qt_days = 0  # Store the number of days
-
-    def show(self):
-        # Show the initial dialog
-        self.initial_dialog.show()
-
-    class InitialDialog(QDialog):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            self.setWindowTitle("Atenção!")
-            self.setGeometry(100, 100, 350, 200)
-
-            # Centralize the window
-            self.center()
-
-            # Layout
-            layout = QVBoxLayout()
-
-            # Instruction text with increased font size
-            instrucao = QLabel(
-                "No calendário que irá aparecer selecione a data da última publicação!\n"
-                "As publicações iniciarão a partir de amanhã, até a data escolhida!"
-            )
-
-            # Increase font size by 50%
-            font = instrucao.font()
-            current_size = font.pointSize()
-            font.setPointSize(int(current_size * 1.5))
-            instrucao.setFont(font)
-
-            # Center the text
-            instrucao.setAlignment(Qt.AlignCenter)
-            layout.addWidget(instrucao)
-
-            # OK button
-            ok_button = QPushButton("OK")
-            ok_button.clicked.connect(self.ok_clicked)
-
-            # Increase button font size
-            button_font = ok_button.font()
-            button_font.setPointSize(int(button_font.pointSize() * 1.5))
-            ok_button.setFont(button_font)
-            layout.addWidget(ok_button)
-
-            # Set layout
-            self.setLayout(layout)
-
-        def ok_clicked(self):
-            # Create and show the CalendarWindow, passing self.parent() as the parent
-            self.calendar_window = MyCalendar.CalendarWindow(self.parent())
-            self.calendar_window.show()
-
-            # Wait for the CalendarWindow to close
-            loop = QEventLoop()
-            self.calendar_window.destroyed.connect(loop.quit)
-            loop.exec_()
-
-            # Close the initial dialog
-            self.close()
-
-        def center(self):
-            # Center the window on the screen
-            screen = QDesktopWidget().screenGeometry()
-            size = self.geometry()
-            self.move(
-                (screen.width() - size.width()) // 2,
-                (screen.height() - size.height()) // 2
-            )
-
-    class CalendarWindow(QMainWindow):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            self.setWindowTitle("Seleção de Data")
-            self.setGeometry(100, 100, 400, 300)
-
-            # Central widget
-            central_widget = QWidget()
-            self.setCentralWidget(central_widget)
-
-            # Layout
-            layout = QVBoxLayout(central_widget)
-
-            # Label
-            label = QLabel("Clique para informar até qual dia serão realizadas as postagens:")
-            layout.addWidget(label)
-
-            # Calendar widget
-            self.calendar = QCalendarWidget()
-            tomorrow = datetime.today() + timedelta(days=1)
-            self.calendar.setMinimumDate(QDate(tomorrow.year, tomorrow.month, tomorrow.day))
-            self.calendar.clicked.connect(self.date_selected)
-            layout.addWidget(self.calendar)
-
-            # Center the window
-            self.center()
-
-        def date_selected(self, date):
-            selected_date = date.toString("dd/MM/yyyy")
-            print(f"Data selecionada: {selected_date}")
-
-            selected_date_obj = datetime.strptime(selected_date, "%d/%m/%Y").date()
-            day_tomorrow = (datetime.today() + timedelta(days=1)).date()
-
-            # Calculate the number of days between tomorrow and the selected date
-            self.parent().qt_days = (selected_date_obj - day_tomorrow).days + 1  # Store qt_days in the parent
-            print(f"Quantidade de dias: {self.parent().qt_days}")
-
-            # Store the dates in the parent's date_list
-            if self.parent():
-                self.parent().date_list = [
-                    (day_tomorrow + timedelta(days=i)).strftime("%d/%m/%Y")
-                    for i in range(self.parent().qt_days)
-                ]
-                print(f"lista_datas = {self.parent().date_list}")
-            else:
-                print("Erro: Nenhum pai definido para CalendarWindow.")
-
-            # Show the confirmation dialog
-            confirmation_dialog = MyCalendar.ConfirmationDialog(selected_date, self)
-            confirmation_dialog.exec_()
-
-        def center(self):
-            # Center the window on the screen
-            screen = QDesktopWidget().screenGeometry()
-            size = self.geometry()
-            self.move(
-                (screen.width() - size.width()) // 2,
-                (screen.height() - size.height()) // 2
-            )
-
-    class ConfirmationDialog(QDialog):
-        def __init__(self, selected_date, parent=None):
-            super().__init__(parent)
-            self.setWindowTitle("Atenção!")
-            self.setGeometry(100, 100, 350, 200)
-
-            # Centralize the window
-            self.center()
-
-            # Layout
-            layout = QVBoxLayout()
-
-            # Confirmation text
-            confirmation_text = QLabel(f"A data escolhida foi {selected_date}. Proceder?")
-            confirmation_text.setAlignment(Qt.AlignCenter)
-            layout.addWidget(confirmation_text)
-
-            # Buttons
-            button_box = QDialogButtonBox()
-
-            # SIM button
-            sim_button = button_box.addButton("SIM", QDialogButtonBox.AcceptRole)
-            sim_button.clicked.connect(self.sim_clicked)
-
-            # Escolher outra data button
-            escolher_button = button_box.addButton("Escolher outra data", QDialogButtonBox.RejectRole)
-            escolher_button.clicked.connect(self.escolher_clicked)
-
-            # SAIR button
-            sair_button = button_box.addButton("SAIR", QDialogButtonBox.DestructiveRole)
-            sair_button.clicked.connect(self.sair_clicked)
-
-            layout.addWidget(button_box)
-
-            # Set layout
-            self.setLayout(layout)
-
-        def sim_clicked(self):
-            # Close all windows and dialogs
-            self.parent().close()  # Close the CalendarWindow
-            self.close()  # Close the ConfirmationDialog
-            QApplication.quit()  # Exit the program
-
-        def escolher_clicked(self):
-            # Close only the confirmation dialog
-            self.close()
-
-        def sair_clicked(self):
-            # Close all windows and exit the program
-            QApplication.quit()
-
-        def center(self):
-            # Center the window on the screen
-            screen = QDesktopWidget().screenGeometry()
-            size = self.geometry()
-            self.move(
-                (screen.width() - size.width()) // 2,
-                (screen.height() - size.height()) // 2
-            )
-
-# Variáveis globais para manter referências
+# Global variables to keep references
 playwright_instance = None
 browser_context = None
 
 def cleanup_playwright():
-    """Função para limpar recursos do Playwright ao sair"""
+    """Function to clean up Playwright resources on exit"""
     global playwright_instance, browser_context
     try:
         if browser_context:
@@ -238,38 +36,36 @@ def cleanup_playwright():
     except:
         pass
 
-# Registra função de limpeza para ser chamada ao sair
+# Register cleanup function to be called on exit
 atexit.register(cleanup_playwright)
 
 def open_chrome_with_profile():
     """
-    Abre uma instância do Google Chrome com todos os dados do perfil,
-    mantendo a sessão ativa indefinidamente.
+    Opens a Google Chrome instance with all profile data,
+    keeping the session active indefinitely.
     """
     global playwright_instance, browser_context
-    
-    # Instala Playwright se necessário
-    print("Verificando instalação do Playwright...")
+    # Install Playwright if necessary
+    print("Checking Playwright installation...")
     subprocess.run(["playwright", "install"], shell=True, capture_output=True)
     subprocess.run(["playwright", "install", "chromium"], shell=True, capture_output=True)
-    
-    # Caminho do perfil do Chrome
+
+    # Chrome profile path
     profile_path = r"C:\Users\danie\AppData\Local\Google\Chrome\User Data\Default"
-    
-    # Verifica se o diretório do perfil existe
+
+    # Check if the profile directory exists
     if not os.path.exists(profile_path):
-        raise FileNotFoundError(f"Diretório do perfil não encontrado: {profile_path}")
-    
-    print("Aviso: Certifique-se de que o Chrome está completamente fechado")
-    
+        raise FileNotFoundError(f"Profile directory not found: {profile_path}")
+
+    print("Warning: Make sure Chrome is completely closed")
+
     try:
-        print("Iniciando Playwright...")
-        # IMPORTANTE: NÃO usar 'with' aqui para manter a sessão ativa
+        print("Starting Playwright...")
+        # IMPORTANT: DO NOT use 'with' here to keep the session active
         playwright_instance = sync_playwright().start()
-        
-        print("Lançando Chrome com perfil...")
-        
-        # Inicia Chrome com perfil específico
+
+        print("Launching Chrome with profile...")
+        # Launch Chrome with specific profile
         browser_context = playwright_instance.chromium.launch_persistent_context(
             user_data_dir=profile_path,
             headless=False,
@@ -284,67 +80,65 @@ def open_chrome_with_profile():
                 '--disable-web-security',
                 '--disable-features=msRealtimeCommunication,TranslateUI',
                 '--remote-debugging-port=0'
-                
             ],
             timeout=30000
         )
 
-        print("Browser lançado com sucesso!")
-        
-        # Abre nova aba
+        print("Browser launched successfully!")
+
+        # Open a new tab
         page = browser_context.new_page()
-        print("Nova aba aberta")
-        
-        # Navega para a página
-        print("Navegando para Fanfever...")
+        print("New tab opened")
+
+        # Navigate to the page
+        print("Navigating to Fanfever...")
         page.goto("https://m.fanfever.com/br/milfelectra", timeout=15000)
 
-        print("Chrome aberto com sucesso com todos os dados do perfil!")
-        print("Você pode agora interagir com cookies, histórico e dados do perfil salvos")
-        
+        print("Chrome opened successfully with all profile data!")
+        print("You can now interact with cookies, history, and saved profile data")
+
         return browser_context, page
-        
+
     except Exception as e:
-        print(f"Erro ao abrir Chrome: {e}")
-        print("Dicas de solução:")
-        print("1. Certifique-se de que o Chrome está completamente fechado (verifique no Gerenciador de Tarefas)")
-        print("2. Execute este script como administrador")
-        print("3. Tente usar um caminho de perfil diferente se necessário")
-        
-        # Limpa recursos em caso de erro
+        print(f"Error opening Chrome: {e}")
+        print("Troubleshooting tips:")
+        print("1. Ensure Chrome is completely closed (check Task Manager)")
+        print("2. Run this script as administrator")
+        print("3. Try using a different profile path if necessary")
+        # Clean up resources in case of error
         cleanup_playwright()
         raise
 
 def keep_browser_alive():
     """
-    Mantém o browser ativo indefinidamente.
-    Chame esta função após open_chrome_with_profile() se quiser manter o browser aberto.
+    Keeps the browser active indefinitely.
+    Call this function after open_chrome_with_profile() if you want to keep the browser open.
     """
     try:
-        print("Mantendo browser ativo... (Pressione Ctrl+C para encerrar)")
+        print("Keeping browser active... (Press Ctrl+C to terminate)")
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\nEncerrando browser...")
+        print("\nClosing browser...")
         cleanup_playwright()
 
 def open_chrome_native():
     """
-    Alternativa: abre Chrome nativo sem Playwright.
-    Usa o executável do Chrome diretamente com o perfil especificado.
+    Alternative: opens native Chrome without Playwright.
+    Uses the Chrome executable directly with the specified profile.
     """
     profile_path = r"C:\Users\danie\AppData\Local\Google\Chrome\User Data"
     chrome_exe = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-    
-    # Verifica se o Chrome está instalado
+
+    # Check if Chrome is installed
     if not os.path.exists(chrome_exe):
-        raise FileNotFoundError(f"Chrome não encontrado em: {chrome_exe}")
-    
-    # Verifica se o diretório do perfil existe
+        raise FileNotFoundError(f"Chrome not found at: {chrome_exe}")
+
+    # Check if the profile directory exists
     if not os.path.exists(profile_path):
-        raise FileNotFoundError(f"Diretório do perfil não encontrado: {profile_path}")
-    
-    # Comando para abrir Chrome com perfil
+        raise FileNotFoundError(f"Profile directory not found: {profile_path}")
+
+    # Command to open Chrome with profile
     cmd = [
         chrome_exe,
         f"--user-data-dir={profile_path}",
@@ -355,40 +149,41 @@ def open_chrome_native():
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
         "--remote-debugging-port=0",
-        "https://m.fanfever.com/br/milfelectra"  # URL para abrir
+        "https://m.fanfever.com/br/milfelectra"  # URL to open
     ]
-    
+
     try:
-        print("Abrindo Chrome nativo...")
-        print(f"Executável: {chrome_exe}")
-        print(f"Perfil: {profile_path}")
-        
-        # Inicia o processo do Chrome
+        print("Opening native Chrome...")
+        print(f"Executable: {chrome_exe}")
+        print(f"Profile: {profile_path}")
+
+        # Start the Chrome process
         process = subprocess.Popen(
             cmd, 
             stdout=subprocess.DEVNULL, 
             stderr=subprocess.DEVNULL
         )
-        
-        print(f"Chrome iniciado com PID: {process.pid}")
-        print("Chrome aberto com sucesso!")
-        
-        # Aguarda Chrome inicializar
+
+        print(f"Chrome started with PID: {process.pid}")
+        print("Chrome opened successfully!")
+
+        # Wait for Chrome to initialize
         time.sleep(3)
-        
-        # Verifica se o processo ainda está rodando
+
+        # Check if the process is still running
         if process.poll() is None:
-            print("Chrome está rodando corretamente")
+            print("Chrome is running correctly")
             return True
         else:
-            print("Chrome foi fechado inesperadamente")
+            print("Chrome closed unexpectedly")
             return False
-            
+
     except FileNotFoundError as e:
-        print(f"Arquivo não encontrado: {e}")
+        print(f"File not found: {e}")
         return False
+
     except Exception as e:
-        print(f"Erro ao abrir Chrome nativo: {e}")
+        print(f"Error opening native Chrome: {e}")
         return False
 
 def click_plus_button(page):
@@ -425,7 +220,7 @@ def click_plus_button(page):
                     }}''')
                     
                     if button_clicked:
-                        print(f"Successfully clicked plus button with JS selector")
+                        #print(f"Successfully clicked plus button with JS selector")
                         return True
                 
                 elif selector.startswith('/'):
@@ -452,7 +247,7 @@ def click_plus_button(page):
                             # Scroll and click
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.click(force=True)
-                            print(f"Successfully clicked plus button with XPath")
+                            #print(f"Successfully clicked plus button with XPath")
                             return True
                         except Exception as e:
                             print(f"XPath click failed: {str(e)}")
@@ -475,7 +270,7 @@ def click_plus_button(page):
                             # Scroll and click
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.click(force=True)
-                            print(f"Successfully clicked plus button with CSS selector")
+                            #print(f"Successfully clicked plus button with CSS selector")
                             return True
                         except Exception as e:
                             print(f"CSS selector click failed: {str(e)}")
@@ -524,57 +319,6 @@ def click_plus_button(page):
         print(f"Error in click_plus_button: {str(e)}")
         return False
 
-class AttentionWindow(QWidget):
-    def __init__(self, page):
-        super().__init__()
-        self.page = page  # Store the Playwright page object
-        self.initUI()
-
-    def initUI(self):
-        # Set window title
-        self.setWindowTitle('Attention!')
-
-        # Create a vertical layout
-        layout = QVBoxLayout()
-
-        # Add a label with the text "Procedimento finalizado!"
-        label = QLabel('Procedimento finalizado!', self)
-        layout.addWidget(label)
-
-        # Add a button to finish the program
-        btn_finish = QPushButton('Finalizar', self)
-        btn_finish.clicked.connect(self.close_application)
-        layout.addWidget(btn_finish)
-
-        # Set the layout to the window
-        self.setLayout(layout)
-
-    def showEvent(self, event: QEvent):
-        """Override showEvent to center the window when it is displayed."""
-        super().showEvent(event)
-        self.center()
-
-    def center(self):
-        """Center the window on the screen."""
-        # Get the geometry of the screen
-        screen = QDesktopWidget().screenGeometry()
-        # Get the geometry of the window
-        size = self.geometry()
-        # Calculate the center position
-        x = (screen.width() - size.width()) // 2
-        y = (screen.height() - size.height()) // 2
-        # Move the window to the center
-        self.move(x, y)
-
-    def go_to_scheduled_posts(self):
-        # Use the Playwright page object to navigate to the URL
-        self.page.goto('https://onlyfans.com/my/queue')
-        print("Navigated to scheduled posts page.")
-
-    def close_application(self):
-        # Close the application
-        self.close()
-
 def click_add_new_story_button(page):
     """
     Attempt to find and click the "Add New Story" button using multiple approaches.
@@ -609,7 +353,7 @@ def click_add_new_story_button(page):
                     }}''')
                     
                     if button_clicked:
-                        print(f"Successfully clicked 'Add New Story' button with JS selector")
+                        #print(f"Successfully clicked 'Add New Story' button with JS selector")
                         return True
                 
                 elif selector.startswith('/'):
@@ -636,7 +380,7 @@ def click_add_new_story_button(page):
                             # Scroll and click
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.click(force=True)
-                            print(f"Successfully clicked 'Add New Story' button with XPath")
+                            #print(f"Successfully clicked 'Add New Story' button with XPath")
                             return True
                         except Exception as e:
                             print(f"XPath click failed: {str(e)}")
@@ -659,7 +403,7 @@ def click_add_new_story_button(page):
                             # Scroll and click
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.click(force=True)
-                            print(f"Successfully clicked 'Add New Story' button with CSS selector")
+                            #print(f"Successfully clicked 'Add New Story' button with CSS selector")
                             return True
                         except Exception as e:
                             print(f"CSS selector click failed: {str(e)}")
@@ -708,18 +452,41 @@ def click_add_new_story_button(page):
         print(f"Error in click_add_new_story_button: {str(e)}")
         return False
 
-def selec_midias():
-    folder_path = r'G:\Meu Drive\SFS'  # Caminho da pasta
+#def select_medias():
+    folder_path = r'G:\Meu Drive\SFS'
     all_files = os.listdir(folder_path)
     files_only = [f for f in all_files if os.path.isfile(os.path.join(folder_path, f))]
-    
-    # Embaralha a lista de mídias
+    # Shuffles the list of media
     random.shuffle(files_only)
-    
-    # Imprime a lista de mídias e a quantidade de itens
-    # print(f"Quantidade de mídias selecionadas: {len(files_only)}")
-    # print(f"Mídias aleatórias selecionadas: {files_only}")
+    # Prints the list of media and the number of items
+    # print(f"Number of selected media: {len(files_only)}")
+    # print(f"Randomly selected media: {files_only}")
     return files_only
+
+def select_random_media():
+    folder_path = r'G:\Meu Drive\SFS'
+    
+    try:
+        all_files = os.listdir(folder_path)
+    except FileNotFoundError:
+        print(f"Folder not found: {folder_path}")
+        return None
+    
+    # Keep only files (skip folders)
+    files_only = [
+        f for f in all_files
+        if os.path.isfile(os.path.join(folder_path, f))
+    ]
+    
+    if not files_only:
+        print("No files found in the folder")
+        return None
+    
+    # Choose one file randomly
+    chosen_file = random.choice(files_only)
+    
+    # Return full path (most upload fields expect full path)
+    return os.path.join(folder_path, chosen_file)
 
 def click_On_Schedule_btn(page):
     """
@@ -762,7 +529,7 @@ def click_On_Schedule_btn(page):
                     }}''')
                     
                     if button_clicked:
-                        print(f"Successfully clicked Schedule button with JS selector")
+                        #print(f"Successfully clicked Schedule button with JS selector")
                         return True
                 
                 elif selector.startswith('/'):
@@ -789,7 +556,7 @@ def click_On_Schedule_btn(page):
                             # Scroll and click
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.click(force=True)
-                            print(f"Successfully clicked Schedule button with XPath")
+                            #print(f"Successfully clicked Schedule button with XPath")
                             return True
                         except Exception as e:
                             print(f"XPath click failed: {str(e)}")
@@ -812,7 +579,7 @@ def click_On_Schedule_btn(page):
                             # Scroll and click
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.click(force=True)
-                            print(f"Successfully clicked Schedule button with CSS selector")
+                            #print(f"Successfully clicked Schedule button with CSS selector")
                             return True
                         except Exception as e:
                             print(f"CSS selector click failed: {str(e)}")
@@ -916,7 +683,7 @@ def click_On_DateTime_input(page):
                     }}''')
                     
                     if input_clicked:
-                        print(f"Successfully clicked DateTime input with JS selector")
+                        #print(f"Successfully clicked DateTime input with JS selector")
                         return True
                 
                 elif selector.startswith('/'):
@@ -945,7 +712,7 @@ def click_On_DateTime_input(page):
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.focus()
                             xpath_elements.first.click(force=True)
-                            print(f"Successfully clicked DateTime input with XPath")
+                            #print(f"Successfully clicked DateTime input with XPath")
                             return True
                         except Exception as e:
                             print(f"XPath click failed: {str(e)}")
@@ -971,7 +738,7 @@ def click_On_DateTime_input(page):
                             css_elements.first.scroll_into_view_if_needed(timeout=10000)  # Reduz timeout
                             css_elements.first.focus(timeout=5000)
                             css_elements.first.click(force=True, timeout=5000)
-                            print(f"Successfully clicked DateTime input with CSS selector")
+                            #print(f"Successfully clicked DateTime input with CSS selector")
                             return True
                         except Exception as e:
                             print(f"CSS selector click failed: {str(e)}")
@@ -1076,7 +843,7 @@ def click_btn_send_story(page):
                     }}''')
                     
                     if button_clicked:
-                        print(f"Successfully clicked send story button with JS selector")
+                        #print(f"Successfully clicked send story button with JS selector")
                         return True
                 
                 elif selector.startswith('/'):
@@ -1103,7 +870,7 @@ def click_btn_send_story(page):
                             # Scroll and click
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.click(force=True)
-                            print(f"Successfully clicked send story button with XPath")
+                            #print(f"Successfully clicked send story button with XPath")
                             return True
                         except Exception as e:
                             print(f"XPath click failed: {str(e)}")
@@ -1126,7 +893,7 @@ def click_btn_send_story(page):
                             # Scroll and click
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.click(force=True)
-                            print(f"Successfully clicked send story button with CSS selector")
+                            #print(f"Successfully clicked send story button with CSS selector")
                             return True
                         except Exception as e:
                             print(f"CSS selector click failed: {str(e)}")
@@ -1183,193 +950,165 @@ def main():
     os.system("taskkill /f /im chrome.exe")
     time.sleep(2)
 
-    app = QApplication(sys.argv)
-
-    # Create an instance of MyCalendar
-    my_calendar = MyCalendar()
-
-    # Show the initial dialog
-    my_calendar.show()
-
-    # Execute the application
-    app.exec_()
-
     try:
         # Opens Chrome with the specified user profile
         browser_context, page = open_chrome_with_profile()
-        
         #print("Successfully opened Chrome with user profile!")
-        print("IMPORTANTE: Não feche este terminal para manter o Chrome ativo")
-        
-        # Se você quiser que o script continue rodando indefinidamente:
+        print("IMPORTANT: Do not close this terminal to keep Chrome active")
+        # If you want the script to keep running indefinitely:
         # keep_browser_alive()
-        
-        # OU se você quiser que o script termine mas mantenha o Chrome:
-        # (o Chrome continuará aberto mesmo após o script terminar)
-        
+        # OR if you want the script to end but keep Chrome:
+        # (Chrome will remain open even after the script ends)
     except Exception as e:
-        print(f"Erro com Playwright: {e}")
-
+        print(f"Error with Playwright: {e}")
     pyautogui.press('f11')
-
-    for day_index, date_str in enumerate(my_calendar.date_list):
-    # Convert string date to datetime object
-        current_date = datetime.strptime(date_str, "%d/%m/%Y").date()
-        print(f"\nProcessing day {day_index + 1}: {date_str}")
-        
-        # Process 24 hours for this day (0-23)
-        for hour in range(0, 24, 1):  # Explicit step of 1 to ensure single increments
-            print(f"  Processing hour {hour:02d}:00")  # Shows as 00:00, 01:00, etc.
             
-            # Get date components from current_date (the day we're actually processing)
-            day_str = current_date.strftime("%d")
-            month_str = current_date.strftime("%m")
-            year_str = current_date.strftime("%Y")
+    page.wait_for_timeout(2000)
 
-            # Tries to click the "plus_button" with retries
-            max_retries = 3
-            clique_sucesso = False
+    # Process 24 hours for this day (0-23)
+    for hour in range(0, 24, 1):  # Explicit step of 1 to ensure single increments
+        print(f"  Processing hour {hour:02d}:00")  # Shows as 00:00, 01:00, etc.
+        
+        # region Try to click the "plus_button" with retries
+        max_retries = 3
+        clique_sucesso = False
 
-            for attempt in range(max_retries):
-                print(f"\nAttempt {attempt + 1} to click plus button...")
-                
-                if click_plus_button(page):
-                    clique_sucesso = True
-                    #print("Successfully clicked plus button!")
-                    break
-                else:
-                    print(f"Attempt {attempt + 1} failed to click plus button.")
-                    if attempt < max_retries - 1:
-                        print("Waiting 3 seconds before next attempt...")
-                        page.wait_for_timeout(3000)
-
-            if not clique_sucesso:
-                print("Error: Failed to click plus button after all attempts.")
-                sys.exit(1)
-
-            page.wait_for_timeout(1000)
-
-            # Try to click the "Add New Story" button with retries
-            max_retries = 3
-            for attempt in range(max_retries):
-                print(f"\nAttempt {attempt + 1} to click 'Add New Story' button...")
-                if click_add_new_story_button(page):
-                    #print("Successfully clicked 'Add New Story' button!")
-                    break
-                else:
-                    print(f"Attempt {attempt + 1} failed.")
-                    if attempt < max_retries - 1:
-                        print("Waiting before next attempt...")
-                        page.wait_for_timeout(5000)
+        for attempt in range(max_retries):
+            print(f"\nAttempt {attempt + 1} to click plus button...")
+            
+            if click_plus_button(page):
+                clique_sucesso = True
+                #print("Successfully clicked plus button!")
+                break
             else:
-                print("Failed to click 'Add New Story' button after all attempts.")
+                print(f"Attempt {attempt + 1} failed to click plus button.")
+                if attempt < max_retries - 1:
+                    print("Waiting 3 seconds before next attempt...")
+                    page.wait_for_timeout(3000)
 
-            page.wait_for_timeout(3000)
+        if not clique_sucesso:
+            print("Error: Failed to click plus button after all attempts.")
+            sys.exit(1)
 
-            # File Explorer operations
-            pyautogui.hotkey('ctrl','l')
-            page.wait_for_timeout(2000)
-            pyautogui.typewrite(r'G:\Meu Drive\SFS')
+        page.wait_for_timeout(2000)
+
+        # endregion
+
+        # Try to click the "Add New Story" button with retries
+        max_retries = 3
+        for attempt in range(max_retries):
+            print(f"\nAttempt {attempt + 1} to click 'Add New Story' button...")
+            if click_add_new_story_button(page):
+                #print("Successfully clicked 'Add New Story' button!")
+                break
+            else:
+                print(f"Attempt {attempt + 1} failed.")
+                if attempt < max_retries - 1:
+                    print("Waiting before next attempt...")
+                    page.wait_for_timeout(5000)
+        else:
+            print("Failed to click 'Add New Story' button after all attempts.")
+
+        page.wait_for_timeout(3000)
+        # endregion
+
+        # region copy and paste the file path
+        media_path = select_random_media()
+
+        if media_path:
+            pyperclip.copy(media_path)           # copy full path, e.g. G:\Meu Drive\SFS\photo123.jpg
+            
+            page.wait_for_timeout(1500)          # ← reduced a bit, increase if needed
+            
+            pyautogui.hotkey('ctrl', 'v')
             page.wait_for_timeout(1000)
+            
             pyautogui.press('enter')
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(1500)          # wait after enter (upload / send)
+        else:
+            print("Could not select any media file – check folder path")
 
-            # Comes back to the file name field
-            pyautogui.hotkey('alt','n')
-            page.wait_for_timeout(2000)
+        # endregion
 
-            # Copy and paste media file
-            try:
-                media_file = selec_midias()[day_index]
-                pyperclip.copy(media_file)
-                page.wait_for_timeout(2000)
-                pyautogui.hotkey('ctrl', 'v')
-                page.wait_for_timeout(2000)
-                pyautogui.press('enter')
-                page.wait_for_timeout(2000)
-            except IndexError:
-                print(f"Error: No media file found for index {day_index}")
-                sys.exit(1)
+    #         # Try to click the Schedule button with retries
+    #         max_retries = 3
+    #         for attempt in range(max_retries):
+    #             print(f"\nAttempt {attempt + 1} to click Schedule button...")
+    #             if click_On_Schedule_btn(page):
+    #                 #print("Successfully clicked Schedule button!")
+    #                 break
+    #             else:
+    #                 print(f"Attempt {attempt + 1} failed.")
+    #                 if attempt < max_retries - 1:
+    #                     print("Waiting before next attempt...")
+    #                     time.sleep(5)  # Wait 5 seconds before retrying
+    #         else:
+    #             print("Failed to click Schedule button after all attempts.")
 
-            # Try to click the Schedule button with retries
-            max_retries = 3
-            for attempt in range(max_retries):
-                print(f"\nAttempt {attempt + 1} to click Schedule button...")
-                if click_On_Schedule_btn(page):
-                    #print("Successfully clicked Schedule button!")
-                    break
-                else:
-                    print(f"Attempt {attempt + 1} failed.")
-                    if attempt < max_retries - 1:
-                        print("Waiting before next attempt...")
-                        time.sleep(5)  # Wait 5 seconds before retrying
-            else:
-                print("Failed to click Schedule button after all attempts.")
+    #         time.sleep(2)
 
-            time.sleep(2)
+    #         # Try to click the DateTime input with retries
+    #         max_retries = 3
+    #         for attempt in range(max_retries):
+    #             print(f"\nAttempt {attempt + 1} to click DateTime input...")
+    #             if click_On_DateTime_input(page):
+    #                 #print("Successfully clicked DateTime input!")
+    #                 break
+    #             else:
+    #                 print(f"Attempt {attempt + 1} failed.")
+    #                 if attempt < max_retries - 1:
+    #                     print("Waiting before next attempt...")
+    #                     time.sleep(2)  # Wait 2 seconds before retrying
+    #         else:
+    #             print("Failed to click DateTime input after all attempts.")
 
-            # Try to click the DateTime input with retries
-            max_retries = 3
-            for attempt in range(max_retries):
-                print(f"\nAttempt {attempt + 1} to click DateTime input...")
-                if click_On_DateTime_input(page):
-                    #print("Successfully clicked DateTime input!")
-                    break
-                else:
-                    print(f"Attempt {attempt + 1} failed.")
-                    if attempt < max_retries - 1:
-                        print("Waiting before next attempt...")
-                        time.sleep(2)  # Wait 2 seconds before retrying
-            else:
-                print("Failed to click DateTime input after all attempts.")
+    #         # Goes to the day field in the datefield
+    #         for _ in range(4):
+    #             pyautogui.hotkey('shift', 'tab')
 
-            # Goes to the day field in the datefield
-            for _ in range(4):
-                pyautogui.hotkey('shift', 'tab')
-
-            time.sleep(1)
+    #         time.sleep(1)
             
-            # Type date components (now using current_date instead of always tomorrow)
-            pyautogui.typewrite(day_str)  # Day
-            pyautogui.typewrite(month_str)  # Month
-            pyautogui.typewrite(year_str)  # Year
-            pyautogui.press('tab') # Move to hour field
+    #         # Type date components (now using current_date instead of always tomorrow)
+    #         pyautogui.typewrite(day_str)  # Day
+    #         pyautogui.typewrite(month_str)  # Month
+    #         pyautogui.typewrite(year_str)  # Year
+    #         pyautogui.press('tab') # Move to hour field
 
-            # FIXED HOUR TYPING - ENSURES SINGLE INCREMENT
-            hour_str = f"{hour:02d}"  # Formats as 00, 01, 02...23
-            pyautogui.typewrite(hour_str)  # Type the hour
-            print(f"Typed hour: {hour_str}")  # Debug output
+    #         # FIXED HOUR TYPING - ENSURES SINGLE INCREMENT
+    #         hour_str = f"{hour:02d}"  # Formats as 00, 01, 02...23
+    #         pyautogui.typewrite(hour_str)  # Type the hour
+    #         print(f"Typed hour: {hour_str}")  # Debug output
             
-            pyautogui.typewrite('03')  # Minutes
-            page.wait_for_timeout(1000)
+    #         pyautogui.typewrite('03')  # Minutes
+    #         page.wait_for_timeout(1000)
     
-            # Try to click the send story button with retries
-            max_retries = 3
-            for attempt in range(max_retries):
-                print(f"\nAttempt {attempt + 1} to send story...")
-                if click_btn_send_story(page):
-                    #print("Successfully clicked send story button!")
-                    break
-                else:
-                    print(f"Attempt {attempt + 1} failed.")
-                    if attempt < max_retries - 1:
-                        print("Waiting before next attempt...")
-                        page.wait_for_timeout(5000)  # Wait 5 seconds before retrying
-            else:
-                print("Failed to send story after all attempts.")
+    #         # Try to click the send story button with retries
+    #         max_retries = 3
+    #         for attempt in range(max_retries):
+    #             print(f"\nAttempt {attempt + 1} to send story...")
+    #             if click_btn_send_story(page):
+    #                 #print("Successfully clicked send story button!")
+    #                 break
+    #             else:
+    #                 print(f"Attempt {attempt + 1} failed.")
+    #                 if attempt < max_retries - 1:
+    #                     print("Waiting before next attempt...")
+    #                     page.wait_for_timeout(5000)  # Wait 5 seconds before retrying
+    #         else:
+    #             print("Failed to send story after all attempts.")
         
-            page.wait_for_timeout(5000)
+    #         page.wait_for_timeout(5000)
 
-            page.goto('https://m.fanfever.com/br/milfelectra')
+    #         page.goto('https://m.fanfever.com/br/milfelectra')
 
-            page.wait_for_timeout(3000)
+    #         page.wait_for_timeout(3000)
 
 
-    window = AttentionWindow(page)
-    window.show()
+    # window = AttentionWindow(page)
+    # window.show()
 
-    # Keep the application running
-    sys.exit(app.exec_())
+    # # Keep the application running
+    # sys.exit(app.exec_())
 
 if __name__ == "__main__":
     main()
