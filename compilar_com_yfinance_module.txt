@@ -1,0 +1,25 @@
+pra compilar com o yahoo
+
+pyinstaller --noconfirm --onefile --console ^
+--hidden-import "playwright_stealth" ^
+--hidden-import "yfinance" ^
+--hidden-import "pandas" ^
+--hidden-import "numpy" ^
+--hidden-import "requests" ^
+--hidden-import "lxml" ^
+--hidden-import "html5lib" ^
+--hidden-import "bs4" ^
+--hidden-import "pytz" ^
+--hidden-import "dateutil" ^
+--hidden-import "collections.abc" ^
+--hidden-import "curl_cffi" ^
+--collect-submodules "yfinance" ^
+--collect-data "yfinance" ^
+--collect-binaries "yfinance" ^
+--collect-all "yfinance" ^
+--add-data "C:\Users\danie\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright_stealth;playwright_stealth" ^
+--add-data "C:\Users\danie\Desktop\projects\venv_projects\Lib\site-packages\yfinance;yfinance" ^
+"C:\Users\danie\Desktop\projects\fansly_yesterday_income_1_6_est.py"
+
+
+pyinstaller --noconfirm --onefile --console --hidden-import "playwright_stealth" --hidden-import "yfinance" --hidden-import "pandas" --hidden-import "numpy" --hidden-import "requests" --hidden-import "lxml" --hidden-import "html5lib" --hidden-import "bs4" --hidden-import "pytz" --hidden-import "dateutil" --hidden-import "collections.abc" --hidden-import "curl_cffi" --collect-submodules "yfinance" --collect-data "yfinance" --collect-binaries "yfinance" --collect-all "yfinance" --add-data "C:\Users\danie\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright_stealth;playwright_stealth" --add-data "C:\Users\danie\Desktop\projects\venv_projects\Lib\site-packages\yfinance;yfinance" "C:\Users\danie\Desktop\projects\of_vip_yesterday_income_1_4_est.py"

@@ -1,0 +1,19 @@
+# Ignorar ambientes virtuais
+    venv/
+    venv_projects/
+    venv_telegram_charger/
+
+    # Ignorar pastas de build e distribuição
+    build/
+    dist/
+
+    # Ignorar arquivos de cache e logs
+    __pycache__/
+    *.log
+    *.pyc
+
+    # Ignorar arquivos específicos grandes que podem estar em outros lugares
+    *.pkg
+    *.exe
+    *.pyd
+    *.traineddata
